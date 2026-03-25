@@ -3,28 +3,21 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
+
 from sklearn.preprocessing import StandardScaler
 from collections import Counter
-
-# =========================
-# IMPORTS
-# =========================
 from src.utils import create_windows, extract_features, simulate_disturbance
-
 from src.pipeline import OscillationPipeline
-
 from src.models.deep_model import DeepAnomalyDetector
 from src.models.transformer_model import TransformerAnomalyDetector
 from src.models.forecast_model import LSTMForecast
-
 from src.simulation.psse_parser import PSSEParser
 from src.graph.grid_graph import GridGraph
 from src.physics.physics_dynamics import PowerSystemDynamics
 
 
-# =========================
 # CONFIG
-# =========================
+
 DATA_DIR = "data/raw"
 RAW_FILE = "data/simulation/Case1_PowerFlow.raw"
 
@@ -33,9 +26,8 @@ MAX_SIGNAL_LENGTH = 500
 MC_RUNS = 5
 
 
-# =========================
 # DATA LOADING
-# =========================
+
 def load_signals(folder):
     signals = []
 
@@ -64,9 +56,8 @@ def load_signals(folder):
     return signals
 
 
-# =========================
 # SAVE PLOT
-# =========================
+
 def save_plot(signal, title, anomalies=None):
     os.makedirs("outputs/plots", exist_ok=True)
 
@@ -88,9 +79,8 @@ def save_plot(signal, title, anomalies=None):
     print(f"[SAVED] {filepath}")
 
 
-# =========================
 # SAVE RESULTS
-# =========================
+
 def save_results(name, stats):
     os.makedirs("outputs/results", exist_ok=True)
 
@@ -99,9 +89,8 @@ def save_results(name, stats):
             f.write(f"{k}: {v}\n")
 
 
-# =========================
 # FORECAST + UNCERTAINTY
-# =========================
+
 def forecast_with_uncertainty(model, data):
     preds = []
 
@@ -113,9 +102,8 @@ def forecast_with_uncertainty(model, data):
     return preds.mean(axis=0), preds.std(axis=0)
 
 
-# =========================
 # ENSEMBLE
-# =========================
+
 def ensemble_decision(*models):
     all_idx = []
 
@@ -128,16 +116,14 @@ def ensemble_decision(*models):
     return np.array(sorted([i for i, c in counts.items() if c >= threshold]))
 
 
-# =========================
 # CONSISTENCY
-# =========================
+
 def consistency(a, b):
     return len(set(a) & set(b)) / (len(set(a) | set(b)) + 1e-8)
 
 
-# =========================
 # RISK SCORING
-# =========================
+
 def risk_score(n, uncertainty):
     score = 0.7 * n + 0.3 * np.mean(uncertainty)
 
@@ -149,20 +135,15 @@ def risk_score(n, uncertainty):
         return "LOW"
 
 
-# =========================
 # MAIN PIPELINE
-# =========================
+
 def main():
     print("\n=== FINAL GRID AI SYSTEM (FULL PHASE-3 — STABLE) ===\n")
 
-    # -------------------------
     # Load data
-    # -------------------------
     signals = load_signals(DATA_DIR)
 
-    # -------------------------
     # Load grid topology
-    # -------------------------
     parser = PSSEParser(RAW_FILE)
     buses, lines = parser.parse()
 
@@ -206,14 +187,13 @@ def main():
         # =========================
         signal = np.concatenate([signal, simulate_disturbance(signal)])
 
-        # =========================
+
         # WINDOWING
-        # =========================
         windows = create_windows(signal, WINDOW_SIZE)
 
-        # =========================
+
         # FEATURE ENGINEERING
-        # =========================
+   
         base_features = extract_features(windows)
         physics_features = physics_model.extract(windows)
 
@@ -225,20 +205,18 @@ def main():
         features = np.hstack([base_features, physics_features, g_feat])
         features = scaler.fit_transform(features)
 
-        # =========================
-        # DETECTION MODELS
-        # =========================
-        a_if = pipeline.detect(features)
 
+        # DETECTION MODELS
+        
+        a_if = pipeline.detect(features)
         lstm.train(windows)
         a_lstm = lstm.detect(windows)
-
         transformer.train(windows)
         a_trans = transformer.detect(windows)
 
-        # =========================
+        
         # FORECASTING
-        # =========================
+
         data = torch.tensor(windows, dtype=torch.float32).unsqueeze(-1)
         target = data[:, -1, :]
 
@@ -256,14 +234,14 @@ def main():
 
         a_fore = np.where(error > np.percentile(error, 92))[0]
 
-        # =========================
+        
         # ENSEMBLE
-        # =========================
+
         ensemble = ensemble_decision(a_if, a_lstm, a_trans, a_fore)
 
-        # =========================
+        
         # RISK + OUTPUT
-        # =========================
+        
         risk = risk_score(len(ensemble), unc)
 
         print(f"IF:{len(a_if)} LSTM:{len(a_lstm)} TRANS:{len(a_trans)}")
@@ -273,9 +251,6 @@ def main():
         if len(ensemble) > 0.10 * len(signal) and np.mean(unc) > 0.1:
             print("[ALERT] Potential grid instability detected")
 
-        # =========================
-        # SAVE
-        # =========================
         save_plot(signal, f"{name}_ensemble", ensemble)
 
         save_results(name, {
