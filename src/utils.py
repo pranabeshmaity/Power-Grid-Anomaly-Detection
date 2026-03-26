@@ -1,9 +1,7 @@
 import numpy as np
 
 
-# =========================
 # WINDOWING
-# =========================
 def create_windows(signal: np.ndarray, window_size: int) -> np.ndarray:
     """
     Convert 1D signal into overlapping windows.
@@ -17,9 +15,7 @@ def create_windows(signal: np.ndarray, window_size: int) -> np.ndarray:
     ])
 
 
-# =========================
 # GRAPH STRUCTURE (GNN-STYLE)
-# =========================
 def compute_graph_structure(windows: np.ndarray) -> np.ndarray:
     """
     Correlation-based adjacency matrix.
@@ -30,9 +26,8 @@ def compute_graph_structure(windows: np.ndarray) -> np.ndarray:
     return corr
 
 
-# =========================
+
 # SIMULATION AUGMENTATION
-# =========================
 def simulate_disturbance(signal: np.ndarray) -> np.ndarray:
     """
     Inject synthetic disturbance (fault-like behavior).
@@ -55,9 +50,8 @@ def simulate_disturbance(signal: np.ndarray) -> np.ndarray:
     return noisy
 
 
-# =========================
+
 # FEATURE ENGINEERING
-# =========================
 def extract_features(windows: np.ndarray) -> np.ndarray:
     """
     Multi-domain feature extraction:
@@ -71,32 +65,27 @@ def extract_features(windows: np.ndarray) -> np.ndarray:
     for w in windows:
         w = np.asarray(w)
 
-        # =========================
+      
         # TIME DOMAIN
-        # =========================
         mean = np.mean(w)
         std = np.std(w)
         max_val = np.max(w)
         min_val = np.min(w)
 
-        # =========================
+
         # TREND
-        # =========================
         slope = np.polyfit(np.arange(len(w)), w, 1)[0]
 
-        # =========================
+   
         # ENERGY
-        # =========================
         energy = np.sum(w ** 2)
 
-        # =========================
+  
         # OSCILLATION
-        # =========================
         zero_cross = np.sum(np.diff(np.sign(w)) != 0)
 
-        # =========================
+
         # FREQUENCY DOMAIN
-        # =========================
         fft_vals = np.abs(np.fft.rfft(w))  # more stable than fft
         dominant_freq = np.argmax(fft_vals)
 
@@ -104,14 +93,12 @@ def extract_features(windows: np.ndarray) -> np.ndarray:
         psd_norm = psd / (np.sum(psd) + 1e-8)
         spectral_entropy = -np.sum(psd_norm * np.log(psd_norm + 1e-8))
 
-        # =========================
+
         # TEMPORAL STRUCTURE
-        # =========================
         autocorr = np.correlate(w, w, mode='full')[len(w) - 1]
 
-        # =========================
+    
         # PHYSICS-INFORMED FEATURES
-        # =========================
         d1 = np.diff(w)
         d2 = np.diff(w, 2)
 
