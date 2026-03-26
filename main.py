@@ -17,7 +17,6 @@ from src.physics.physics_dynamics import PowerSystemDynamics
 
 
 # CONFIG
-
 DATA_DIR = "data/raw"
 RAW_FILE = "data/simulation/Case1_PowerFlow.raw"
 
@@ -27,7 +26,6 @@ MC_RUNS = 5
 
 
 # DATA LOADING
-
 def load_signals(folder):
     signals = []
 
@@ -56,8 +54,7 @@ def load_signals(folder):
     return signals
 
 
-# SAVE PLOT
-
+# PLOT
 def save_plot(signal, title, anomalies=None):
     os.makedirs("outputs/plots", exist_ok=True)
 
@@ -79,8 +76,7 @@ def save_plot(signal, title, anomalies=None):
     print(f"[SAVED] {filepath}")
 
 
-# SAVE RESULTS
-
+# RESULTS
 def save_results(name, stats):
     os.makedirs("outputs/results", exist_ok=True)
 
@@ -90,7 +86,6 @@ def save_results(name, stats):
 
 
 # FORECAST + UNCERTAINTY
-
 def forecast_with_uncertainty(model, data):
     preds = []
 
@@ -103,7 +98,6 @@ def forecast_with_uncertainty(model, data):
 
 
 # ENSEMBLE
-
 def ensemble_decision(*models):
     all_idx = []
 
@@ -117,13 +111,11 @@ def ensemble_decision(*models):
 
 
 # CONSISTENCY
-
 def consistency(a, b):
     return len(set(a) & set(b)) / (len(set(a) | set(b)) + 1e-8)
 
 
 # RISK SCORING
-
 def risk_score(n, uncertainty):
     score = 0.7 * n + 0.3 * np.mean(uncertainty)
 
@@ -136,7 +128,6 @@ def risk_score(n, uncertainty):
 
 
 # MAIN PIPELINE
-
 def main():
     print("\n=== FINAL GRID AI SYSTEM (FULL PHASE-3 — STABLE) ===\n")
 
@@ -153,9 +144,8 @@ def main():
 
     physics_model = PowerSystemDynamics()
 
-    # -------------------------
+
     # Initialize models
-    # -------------------------
     pipeline = OscillationPipeline()
     lstm = DeepAnomalyDetector(WINDOW_SIZE, epochs=1)
     transformer = TransformerAnomalyDetector(WINDOW_SIZE, epochs=1)
@@ -166,25 +156,22 @@ def main():
 
     scaler = StandardScaler()
 
-    # -------------------------
+
     # Process each signal
-    # -------------------------
     for name, signal in signals:
 
         print(f"\n[INFO] Processing: {name}")
 
         signal = signal[:MAX_SIGNAL_LENGTH]
 
-        # =========================
+  
         # VALIDATION
-        # =========================
         if len(signal) <= WINDOW_SIZE:
             print(f"[SKIPPED] {name} (too short: {len(signal)} samples)")
             continue
 
-        # =========================
+  
         # AUGMENTATION
-        # =========================
         signal = np.concatenate([signal, simulate_disturbance(signal)])
 
 
@@ -193,7 +180,6 @@ def main():
 
 
         # FEATURE ENGINEERING
-   
         base_features = extract_features(windows)
         physics_features = physics_model.extract(windows)
 
@@ -207,7 +193,6 @@ def main():
 
 
         # DETECTION MODELS
-        
         a_if = pipeline.detect(features)
         lstm.train(windows)
         a_lstm = lstm.detect(windows)
@@ -216,7 +201,6 @@ def main():
 
         
         # FORECASTING
-
         data = torch.tensor(windows, dtype=torch.float32).unsqueeze(-1)
         target = data[:, -1, :]
 
@@ -236,12 +220,10 @@ def main():
 
         
         # ENSEMBLE
-
         ensemble = ensemble_decision(a_if, a_lstm, a_trans, a_fore)
 
         
         # RISK + OUTPUT
-        
         risk = risk_score(len(ensemble), unc)
 
         print(f"IF:{len(a_if)} LSTM:{len(a_lstm)} TRANS:{len(a_trans)}")
@@ -265,8 +247,6 @@ def main():
     print("\n=== COMPLETE ===\n")
 
 
-# =========================
 # ENTRY POINT
-# =========================
 if __name__ == "__main__":
     main()
